@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>倒數計時器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #3b82f6;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .timer-display {
+            font-size: 7rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .btn {
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .time-preset {
+            transition: all 0.2s ease;
+        }
+        
+        .time-preset.active {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+        
+        .custom-time-input {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .custom-time-input:focus {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            outline: none;
+        }
+        
+        .custom-time-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .completion-animation {
+            animation: completion 0.5s ease-in-out;
+        }
+        
+        @keyframes completion {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+        }
+        
+        .sound-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .sound-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .time-input-group {
+            position: relative;
+        }
+        
+        .time-input-label {
+            position: absolute;
+            top: -18px;
+            left: 10px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .time-separator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 0 5px;
+        }
+        
+        /* 浮動按鈕樣式 */
+        .floating-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+        
+        .floating-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* 代碼模態視窗樣式 */
+        .code-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .code-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+        
+        .code-modal.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .code-container {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 20px;
+            background: #0f0f1a;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+        }
+        
+        .code-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .code-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+        
+        .code-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        
+        /* 複製通知樣式 */
+        .copy-notification {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1100;
+        }
+        
+        .copy-notification.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* 進度條樣式 */
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: -1;
+        }
+        
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.3s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            stroke: rgba(255, 255, 255, 0.2);
+        }
+        
+        .progress-ring__circle-progress {
+            transition: stroke-dashoffset 1s linear;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            stroke: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* 最後10秒倒計時樣式 */
+        .final-countdown {
+            color: #ff4d4d;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.relative{position:relative}.z-10{z-index:10}.mx-auto{margin-left:auto;margin-right:auto}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-4{margin-top:1rem}.flex{display:flex}.grid{display:grid}.h-48{height:12rem}.w-full{width:100%}.max-w-md{max-width:28rem}.flex-1{flex:1 1 0%}.grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.rounded-3xl{border-radius:1.5rem}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.rounded-l-xl{border-top-left-radius:0.75rem;border-bottom-left-radius:0.75rem}.rounded-r-xl{border-top-right-radius:0.75rem;border-bottom-right-radius:0.75rem}.bg-indigo-600{--tw-bg-opacity:1;background-color:rgb(79 70 229 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-opacity-10{--tw-bg-opacity:0.1}.bg-opacity-20{--tw-bg-opacity:0.2}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.text-center{text-align:center}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.opacity-70{opacity:0.7}.opacity-80{opacity:0.8}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.backdrop-blur-lg{--tw-backdrop-blur:blur(16px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.hover\:bg-indigo-700:hover{--tw-bg-opacity:1;background-color:rgb(67 56 202 / var(--tw-bg-opacity, 1))}.hover\:bg-opacity-20:hover{--tw-bg-opacity:0.2}.hover\:bg-opacity-30:hover{--tw-bg-opacity:0.3}.hover\:opacity-100:hover{opacity:1}</style></head>
+<body class="p-4">
+    <div class="sound-toggle" id="soundToggle" title="聲音開關">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    </div>
+    
+    <div class="container max-w-md mx-auto z-10 relative">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2">倒數計時器</h1>
+            <p class="text-lg opacity-80">松山高中-元宇宙期末報告</p>
+        </div>
+        
+        <div class="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-8 shadow-lg">
+            <div class="flex justify-center items-center h-48 mb-6 relative">
+                <!-- 進度環 -->
+                <svg class="progress-ring" width="220" height="220">
+                    <circle class="progress-ring__circle" stroke-width="8" fill="transparent" r="100" cx="110" cy="110"></circle>
+                    <circle class="progress-ring__circle-progress" id="progressRing" stroke-width="8" fill="transparent" r="100" cx="110" cy="110" style="stroke-dasharray: 628.319, 628.319; stroke-dashoffset: 0;"></circle>
+                </svg>
+                <div id="timer" class="timer-display" style="color: white;">00:00</div>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-2 mb-6">
+                <button class="time-preset rounded-xl py-2 px-3 text-center bg-white bg-opacity-10 hover:bg-opacity-20" data-minutes="10">10分鐘</button>
+                <button class="time-preset rounded-xl py-2 px-3 text-center bg-white bg-opacity-10 hover:bg-opacity-20" data-minutes="15">15分鐘</button>
+                <button class="time-preset rounded-xl py-2 px-3 text-center bg-white bg-opacity-10 hover:bg-opacity-20" data-minutes="30">30分鐘</button>
+                <button class="time-preset rounded-xl py-2 px-3 text-center bg-white bg-opacity-10 hover:bg-opacity-20" data-minutes="60">60分鐘</button>
+            </div>
+            
+            <div class="mb-2 text-sm opacity-80">自定義時間</div>&nbsp 
+            <div class="flex items-center mb-6">
+                <div class="time-input-group flex-1">
+                    <span class="time-input-label">分鐘</span>
+                    <input type="number" id="customMinutes" min="0" max="999" class="custom-time-input rounded-l-xl py-2 px-4 w-full text-center" placeholder="0">
+                </div>
+                <div class="time-separator">:</div>
+                <div class="time-input-group flex-1">
+                    <span class="time-input-label">秒鐘</span>
+                    <input type="number" id="customSeconds" min="0" max="59" class="custom-time-input py-2 px-4 w-full text-center" placeholder="0">
+                </div>
+                <button id="setCustomTime" class="bg-white bg-opacity-20 hover:bg-opacity-30 py-2 px-4 rounded-r-xl">設定</button>
+            </div>
+            
+            <div class="flex justify-between gap-4">
+                <button id="startPause" class="btn flex-1 bg-white bg-opacity-20 hover:bg-opacity-30 py-3 rounded-xl font-semibold">開始</button>
+                <button id="reset" class="btn flex-1 bg-white bg-opacity-10 hover:bg-opacity-20 py-3 rounded-xl font-semibold">重置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 浮動按鈕 - 查看代碼 -->
+    <div class="floating-btn" id="viewCodeBtn" title="查看代碼">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+    </div>
+    
+    <!-- 代碼模態視窗 -->
+    <div class="code-modal" id="codeModal">
+        <div class="modal-content">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">冥想倒計時器原始碼</h2>
+                    <button id="closeModal" class="text-white opacity-70 hover:opacity-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="code-container" id="codeContainer"></div>
+                <div class="mt-4 flex justify-end">
+                    <button id="copyCodeBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        複製代碼
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 複製成功通知 -->
+    <div class="copy-notification" id="copyNotification">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            代碼已複製到剪貼簿
+        </div>
+    </div>
+    
+    <!-- 音效元素 -->
+    <audio id="completionSound" preload="auto">
+        <source src="https://taira-komori.jpn.org/sound_os2/game01/coin05.mp3" type="audio/mpeg">
+    </audio>
+    
+    <!-- 倒數10秒音效 -->
+    <audio id="countdownSound" preload="auto" loop="">
+        <source src="https://www.orangefreesounds.com/wp-content/uploads/2019/03/Fast-clock-ticking-sound-effect.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const timerDisplay = document.getElementById('timer');
+            const startPauseBtn = document.getElementById('startPause');
+            const resetBtn = document.getElementById('reset');
+            const customMinutesInput = document.getElementById('customMinutes');
+            const customSecondsInput = document.getElementById('customSeconds');
+            const setCustomTimeBtn = document.getElementById('setCustomTime');
+            const timePresets = document.querySelectorAll('.time-preset');
+            const completionSound = document.getElementById('completionSound');
+            const countdownSound = document.getElementById('countdownSound');
+            const soundToggle = document.getElementById('soundToggle');
+            const viewCodeBtn = document.getElementById('viewCodeBtn');
+            const codeModal = document.getElementById('codeModal');
+            const closeModal = document.getElementById('closeModal');
+            const copyCodeBtn = document.getElementById('copyCodeBtn');
+            const codeContainer = document.getElementById('codeContainer');
+            const copyNotification = document.getElementById('copyNotification');
+            const progressRing = document.getElementById('progressRing');
+            
+            let countdown;
+            let timeLeft = 15 * 60; // 預設15分鐘
+            let totalTime = timeLeft; // 總時間，用於計算進度
+            let isRunning = false;
+            let activePreset = document.querySelector('.time-preset.active');
+            let soundEnabled = true;
+            let countdownSoundPlayed = false;
+            
+            // 設置進度環
+            const radius = progressRing.r.baseVal.value;
+            const circumference = radius * 2 * Math.PI;
+            progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressRing.style.strokeDashoffset = circumference;
+            
+            // 更新進度環
+            function setProgress(percent) {
+                const offset = circumference - (percent / 100 * circumference);
+                progressRing.style.strokeDashoffset = offset;
+            }
+            
+            // 更新時間顯示
+            function updateTimerDisplay() {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // 更新進度環
+                if (totalTime > 0) {
+                    const progressPercent = ((totalTime - timeLeft) / totalTime) * 100;
+                    setProgress(progressPercent);
+                }
+                
+                // 最後10秒倒計時特效
+                if (timeLeft <= 10 && timeLeft > 0) {
+                    timerDisplay.classList.add('final-countdown');
+                    
+                    // 播放倒數10秒音效
+                    if (soundEnabled && !countdownSoundPlayed) {
+                        playCountdownSound();
+                        countdownSoundPlayed = true;
+                    }
+                } else if (timeLeft > 10) {
+                    timerDisplay.classList.remove('final-countdown');
+                    stopCountdownSound();
+                }
+            }
+            
+            // 開始計時
+            function startTimer() {
+                if (isRunning) return;
+                
+                isRunning = true;
+                startPauseBtn.textContent = '暫停';
+                
+                // 如果剩餘時間小於等於10秒，立即播放倒數音效
+                if (timeLeft <= 10 && soundEnabled && !countdownSoundPlayed) {
+                    playCountdownSound();
+                    countdownSoundPlayed = true;
+                }
+                
+                countdown = setInterval(() => {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(countdown);
+                        isRunning = false;
+                        startPauseBtn.textContent = '開始';
+                        stopCountdownSound(); // 停止倒數音效
+                        timerComplete();
+                    }
+                }, 1000);
+            }
+            
+            // 暫停計時
+            function pauseTimer() {
+                clearInterval(countdown);
+                isRunning = false;
+                startPauseBtn.textContent = '繼續';
+                
+                // 如果在倒數10秒內暫停，也停止音效
+                if (timeLeft <= 10) {
+                    stopCountdownSound();
+                }
+            }
+            
+            // 重置計時器
+            function resetTimer() {
+                clearInterval(countdown);
+                isRunning = false;
+                
+                // 使用當前選中的預設時間
+                if (activePreset) {
+                    timeLeft = parseInt(activePreset.dataset.minutes) * 60;
+                } else {
+                    timeLeft = 15 * 60; // 預設回到15分鐘
+                }
+                
+                totalTime = timeLeft; // 更新總時間
+                updateTimerDisplay();
+                startPauseBtn.textContent = '開始';
+                timerDisplay.style.color = 'white';
+                timerDisplay.classList.remove('final-countdown');
+                setProgress(0); // 重置進度環
+                countdownSoundPlayed = false;
+                stopCountdownSound(); // 停止倒數音效
+            }
+            
+            // 設定自定義時間
+            function setCustomTime() {
+                let minutes = parseInt(customMinutesInput.value) || 0;
+                let seconds = parseInt(customSecondsInput.value) || 0;
+                
+                // 驗證輸入
+                if (minutes === 0 && seconds === 0) {
+                    highlightInvalidInput(customMinutesInput);
+                    highlightInvalidInput(customSecondsInput);
+                    return;
+                }
+                
+                if (seconds > 59) {
+                    seconds = 59;
+                    customSecondsInput.value = 59;
+                }
+                
+                clearInterval(countdown);
+                isRunning = false;
+                timeLeft = (minutes * 60) + seconds;
+                totalTime = timeLeft; // 更新總時間
+                updateTimerDisplay();
+                startPauseBtn.textContent = '開始';
+                setProgress(0); // 重置進度環
+                countdownSoundPlayed = false;
+                stopCountdownSound(); // 停止倒數音效
+                
+                // 清除所有預設選擇
+                timePresets.forEach(preset => preset.classList.remove('active'));
+                activePreset = null;
+                
+                // 清空輸入欄位
+                customMinutesInput.value = '';
+                customSecondsInput.value = '';
+            }
+            
+            // 高亮顯示無效輸入
+            function highlightInvalidInput(inputElement) {
+                inputElement.classList.add('border-red-400');
+                setTimeout(() => {
+                    inputElement.classList.remove('border-red-400');
+                }, 1000);
+            }
+            
+            // 計時完成
+            function timerComplete() {
+                timerDisplay.textContent = '完成!';
+                timerDisplay.style.color = '#fcd34d';
+                timerDisplay.classList.add('completion-animation');
+                timerDisplay.classList.remove('final-countdown');
+                setProgress(100); // 進度環顯示100%
+                
+                // 播放完成音效
+                if (soundEnabled) {
+                    playCompletionSound();
+                }
+                
+                setTimeout(() => {
+                    timerDisplay.classList.remove('completion-animation');
+                    setTimeout(() => {
+                        timerDisplay.style.color = 'white';
+                        updateTimerDisplay();
+                    }, 2000);
+                }, 500);
+            }
+            
+            // 播放完成音效
+            function playCompletionSound() {
+                // 確保倒數音效已停止
+                stopCountdownSound();
+                
+                // 重置音頻以確保可以再次播放
+                completionSound.currentTime = 0;
+                
+                // 嘗試播放音效
+                const playPromise = completionSound.play();
+                
+                // 處理可能的播放錯誤
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log('音頻播放失敗:', error);
+                    });
+                }
+            }
+            
+            // 播放倒數10秒音效
+            function playCountdownSound() {
+                // 重置音頻以確保可以再次播放
+                countdownSound.currentTime = 0;
+                
+                // 嘗試播放音效
+                const playPromise = countdownSound.play();
+                
+                // 處理可能的播放錯誤
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.log('倒數音效播放失敗:', error);
+                    });
+                }
+            }
+            
+            // 停止倒數音效
+            function stopCountdownSound() {
+                countdownSound.pause();
+                countdownSound.currentTime = 0;
+                countdownSoundPlayed = false;
+            }
+            
+            // 切換聲音開關
+            function toggleSound() {
+                soundEnabled = !soundEnabled;
+                
+                // 更新圖標
+                if (soundEnabled) {
+                    soundToggle.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    `;
+                    
+                    // 如果正在倒數10秒，重新播放音效
+                    if (isRunning && timeLeft <= 10 && timeLeft > 0) {
+                        playCountdownSound();
+                        countdownSoundPlayed = true;
+                    }
+                } else {
+                    soundToggle.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    `;
+                    
+                    // 停止所有音效
+                    stopCountdownSound();
+                }
+            }
+            
+            // 限制輸入數字
+            function restrictNumberInput(e) {
+                // 允許: 刪除鍵, 退格鍵, 左右箭頭, Tab鍵
+                if ([46, 8, 37, 39, 9].indexOf(e.keyCode) !== -1 ||
+                    // 允許: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                    (e.keyCode >= 65 && e.keyCode <= 90 && e.ctrlKey === true)) {
+                    return;
+                }
+                // 確保只能輸入數字
+                if ((e.keyCode < 48 || e.keyCode > 57) && (e.keyCode < 96 || e.keyCode > 105)) {
+                    e.preventDefault();
+                }
+            }
+            
+            // 獲取當前頁面的完整HTML代碼
+            function getFullPageCode() {
+                // 獲取當前HTML文檔的完整代碼
+                const doctype = '<!DOCTYPE html>\n';
+                const html = document.documentElement.outerHTML;
+                return doctype + html;
+            }
+            
+            // 打開代碼模態視窗
+            function openCodeModal() {
+                // 獲取並顯示代碼
+                const fullCode = getFullPageCode();
+                codeContainer.textContent = fullCode;
+                
+                // 顯示模態視窗
+                codeModal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            // 關閉代碼模態視窗
+            function closeCodeModal() {
+                codeModal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            // 複製代碼
+            function copyCode() {
+                const codeText = codeContainer.textContent;
+                
+                // 使用 Clipboard API
+                navigator.clipboard.writeText(codeText).then(() => {
+                    showCopyNotification();
+                }).catch(err => {
+                    console.error('複製失敗:', err);
+                    
+                    // 備用方法
+                    const textarea = document.createElement('textarea');
+                    textarea.value = codeText;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    
+                    try {
+                        document.execCommand('copy');
+                        showCopyNotification();
+                    } catch (err) {
+                        console.error('複製失敗:', err);
+                    }
+                    
+                    document.body.removeChild(textarea);
+                });
+            }
+            
+            // 顯示複製成功通知
+            function showCopyNotification() {
+                copyNotification.classList.add('active');
+                
+                setTimeout(() => {
+                    copyNotification.classList.remove('active');
+                }, 2000);
+            }
+            
+            // 事件監聽器
+            startPauseBtn.addEventListener('click', () => {
+                if (isRunning) {
+                    pauseTimer();
+                } else {
+                    startTimer();
+                }
+            });
+            
+            resetBtn.addEventListener('click', resetTimer);
+            
+            setCustomTimeBtn.addEventListener('click', setCustomTime);
+            
+            customMinutesInput.addEventListener('keydown', restrictNumberInput);
+            customSecondsInput.addEventListener('keydown', restrictNumberInput);
+            
+            // 按Enter鍵設定時間
+            customMinutesInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    customSecondsInput.focus();
+                }
+            });
+            
+            customSecondsInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    setCustomTime();
+                }
+            });
+            
+            soundToggle.addEventListener('click', toggleSound);
+            
+            // 限制秒數輸入範圍
+            customSecondsInput.addEventListener('input', function() {
+                if (this.value > 59) {
+                    this.value = 59;
+                }
+            });
+            
+            // 代碼模態視窗相關事件
+            viewCodeBtn.addEventListener('click', openCodeModal);
+            closeModal.addEventListener('click', closeCodeModal);
+            copyCodeBtn.addEventListener('click', copyCode);
+            
+            // 點擊模態視窗外部關閉
+            codeModal.addEventListener('click', (e) => {
+                if (e.target === codeModal) {
+                    closeCodeModal();
+                }
+            });
+            
+            // ESC鍵關閉模態視窗
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && codeModal.classList.contains('active')) {
+                    closeCodeModal();
+                }
+            });
+            
+            // 預設時間按鈕
+            timePresets.forEach(preset => {
+                preset.addEventListener('click', () => {
+                    // 移除之前的活動狀態
+                    timePresets.forEach(p => p.classList.remove('active'));
+                    
+                    // 設置新的活動狀態
+                    preset.classList.add('active');
+                    activePreset = preset;
+                    
+                    // 更新時間
+                    const minutes = parseInt(preset.dataset.minutes);
+                    timeLeft = minutes * 60;
+                    totalTime = timeLeft; // 更新總時間
+                    updateTimerDisplay();
+                    setProgress(0); // 重置進度環
+                    countdownSoundPlayed = false;
+                    stopCountdownSound(); // 停止倒數音效
+                    
+                    // 如果計時器正在運行，重置它
+                    if (isRunning) {
+                        clearInterval(countdown);
+                        isRunning = false;
+                        startPauseBtn.textContent = '開始';
+                    }
+                });
+            });
+            
+            // 初始化顯示
+            updateTimerDisplay();
+            
+            // 預加載音效
+            completionSound.load();
+            countdownSound.load();
+            
+            // 處理頁面可見性變化
+            document.addEventListener('visibilitychange', () => {
+                // 如果頁面隱藏且音效正在播放，暫停音效
+                if (document.hidden) {
+                    if (countdownSoundPlayed) {
+                        countdownSound.pause();
+                    }
+                } else {
+                    // 如果頁面再次可見且應該播放音效，恢復播放
+                    if (countdownSoundPlayed && isRunning && timeLeft <= 10 && timeLeft > 0 && soundEnabled) {
+                        countdownSound.play();
+                    }
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93ca4c3fd59af067',t:'MTc0NjcyMTM2Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><iframe height="1" width="1" style="position: absolute; top: 0px; left: 0px; border: none; visibility: hidden;" data-ruffle-polyfilled=""></iframe>
+</body></html>
